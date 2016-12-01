@@ -16,7 +16,8 @@ void Server::init()
 
     port = SERVER_PORT;
     // getaddrinfo() to get a list of usable addresses
-    std::string host = "localhost";
+    //std::string host = "localhost";
+std::string host = SERVER_IP;
     char service[NI_MAXSERV];
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_canonname = nullptr;
@@ -103,8 +104,8 @@ void Server::start()
     char host[NI_MAXHOST];
     char service[NI_MAXSERV];
     int *client_socket_fd = nullptr;
-    std::thread userlist_updater{&Server::update_local_list, this};
-    userlist_updater.detach();
+    //std::thread userlist_updater{&Server::update_local_list, this};
+    //userlist_updater.detach();
     while(!stopped)
     {
         client_socket_fd = new int;
