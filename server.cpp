@@ -104,8 +104,8 @@ void Server::start()
     char host[NI_MAXHOST];
     char service[NI_MAXSERV];
     int *client_socket_fd = nullptr;
-    //std::thread userlist_updater{&Server::update_local_list, this};
-    //userlist_updater.detach();
+    std::thread userlist_updater{&Server::update_local_list, this};
+    userlist_updater.detach();
     while(!stopped)
     {
         client_socket_fd = new int;
