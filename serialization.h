@@ -98,7 +98,7 @@ namespace Serialization
                    sizeof(Header) );
 
             memcpy(&log.username,
-                   data +sizeof(Header),
+                   (char*)data +sizeof(Header),
                    size );
             ptr = nullptr;
             return log;
@@ -132,7 +132,7 @@ namespace Serialization
         {
            ControlInfo info;
            memcpy((char*)&info.header, data, sizeof(Header));
-           void *ptr = data + sizeof(Header);
+           char *ptr = (char*)data + sizeof(Header);
            if(info.header.length > 0)
            {
                int offset = sizeof(Entry);
@@ -147,22 +147,6 @@ namespace Serialization
                }
            }
            return info;
-        }
-    };
-
-
-    template<>
-    class Serialize<Entry>
-    {
-    public:
-       static void* serialize(const Entry &entry)
-        {
-            return nullptr;
-        }
-
-       static Entry deserialize(void *data)
-        {
-
         }
     };
 }

@@ -52,7 +52,7 @@ ControlInfo create_controlInfo(const std::vector<std::string> &users)
     {
         info.entries = new Entry[users.size()];
         info.header.flags = 0;
-        for(int i = 0; i < users.size(); i++)
+        for(size_t i = 0; i < users.size(); i++)
         {
             memset(info.entries[i].username,
                    0,

@@ -17,8 +17,7 @@ void Server::init()
 
     port = SERVER_PORT;
     // getaddrinfo() to get a list of usable addresses
-    std::string host = "localhost";
-    char service[NI_MAXSERV];
+    //std::string host = "localhost";
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_canonname = nullptr;
     hints.ai_addr = nullptr;
@@ -109,14 +108,13 @@ void Server::start()
     while(!stopped)
     {
         client_socket_fd = new int;
-        Logger::log("waiting for new Connexion from client ");
+        Logger::log("waiting for new Connexion ...");
         *client_socket_fd = accept(listening_socket, (sockaddr*)&client_addr, &addrlen);
         if(*client_socket_fd == -1)
         {
             perror("accept error");
             continue;
         }
-        Logger::log("new connexion caught ...");
         if(getnameinfo((sockaddr*)&client_addr,addrlen, host, NI_MAXHOST, service,
                        NI_MAXSERV, 0) == 0)
         {
@@ -172,18 +170,30 @@ Client* Server::getClient(int uid)
 
 void Server::update_userlist(const ControlInfo &info, int sender_uid)
 {
-
+    (void)info;
+    (void)sender_uid;
 }
 
 void Server::update_local_list()
 {
     char beat = 1;
+    auto predicate = [](Client *client){
+        if(client)
+        {
+            if(client->isGone())
+            {
+                Logger::log(client->getUsername() + " left");
+            }
+            return client->isGone();
+        }
+        return false;
+    };
     Logger::log(std::string(__FUNCTION__) + " started ...");
     while(!stopped)
     {
         std::this_thread::sleep_for(ms(5000));
 
-
+        /*
         for(std::vector<Client*>::iterator it = clients.begin(); it != clients.end(); )
         {
             if((*it)->isGone())
@@ -191,27 +201,16 @@ void Server::update_local_list()
                 Logger::log((*it)->getUsername() + " left");
                 clients.erase(it);
             }
-
-
             else
             {
                 it++;
             }
         }
-
-
-        /*
+*/
         auto it_new_end =
-        std::remove_if(clients.begin(), clients.end(),
-                       [](Client *client){
-            if(client->isGone())
-            {
-                Logger::log(client->getUsername() + " left");
-            }
-            return client->isGone();
-        });
-        */
-        //clients.erase(it_new_end, clients.end());
+        std::remove_if(clients.begin(), clients.end(),predicate);
+
+        clients.erase(it_new_end, clients.end());
         std::this_thread::sleep_for(ms(5000));
 
         std::for_each(clients.begin(), clients.end(),
@@ -269,20 +268,21 @@ void Server::hearbeat()
     */
 }
 
-NeighboorServer* Server::getServer(int pos)
+NeighboorServer* Server::getServer(size_t pos)
 {
     std::lock_guard<std::mutex> lock(server_shield);
-    if(pos >= 0 && pos < clients.size())
+    if(pos < clients.size())
     {
         return servers.at(pos);
     }
+    return nullptr;
 }
 
 
-void Server::removeServer(int pos)
+void Server::removeServer(size_t pos)
 {
     std::lock_guard<std::mutex> lock(server_shield);
-    if(pos >= 0 && pos < servers.size())
+    if(pos < servers.size())
     {
         std::vector<NeighboorServer*>::iterator it = servers.begin() + pos;
         servers.erase(it);
@@ -307,10 +307,6 @@ int Server::sendToClient(int client_uid, void *data, int n)
              else if(count < n)
              {
                 Logger::log("SendToClient : Not all data could be sent");
-             }
-             else
-             {
-                 Logger::log("SendToClient : all data could be sent");
              }
              break;
          }
@@ -356,8 +352,6 @@ void Server::client_handler(int socket_fd)
 
 int Server::decode_and_process(void *data, int sender_uid)
 {
-
-    char *ptr = (char*)data;
     LogInOut log;
     Message msg;
     flat_header header;
@@ -380,8 +374,6 @@ int Server::decode_and_process(void *data, int sender_uid)
 
         break;        
     }
-
-    ptr = nullptr;
     return ret;
 }
 
@@ -426,49 +418,43 @@ int Server::process_loginout(LogInOut &log, int sender_uid)
 }
 
 
+void Server::send_error_message(const Message &message, int count)
+{
+    std::string str = std::string("user ") + std::string(message.receiver)
+            + " not found on this server" ;
+
+    count = 0;
+    Logger::log(str);
+    int clt_uid = getClient(std::string(message.sender))->getUid();
+    error_message = create_message(name,
+                                   std::string(message.sender),
+                                   str.c_str(), str.size());
+    void * reply = Serialization::Serialize<Message>::serialize(error_message);
+    count = (2 * STR_LEN) + str.size() + sizeof(Header);
+    sendToClient(clt_uid, reply, count);
+}
+
 int Server::process_message(const Message &message,
                             void *data, int len)
 {
-    Client *client = nullptr;
     int count = 1;
-    for(Client* clt : clients)
-    {
-        if(clt->getUsername() == std::string(message.receiver))
-        {
-            client = clt;
-            break;
-        }
-    }
+    Client *client = getClient(std::string(message.receiver));
     if(client)
     {
         count = write(client->getSocket(), data, len);
         if(count < 0)
         {
             perror(__FUNCTION__);
-
         }
         else
         {
             count = 0;
         }
-
     }
     // the receiver is may be available from the the server
     else
     {
-
-        std::string str = std::string("user ") + std::string(message.receiver)
-                + " not found on this server" ;
-        // send message to the next server
-        count = 0;
-        Logger::log(str);
-        int clt_uid = getClient(std::string(message.sender))->getUid();
-        error_message = create_message(name,
-                                       std::string(message.sender),
-                                       str.c_str(), str.size());
-        void * reply = Serialization::Serialize<Message>::serialize(error_message);
-        count = (2 * STR_LEN) + str.size() + sizeof(Header);
-        count = sendToClient(clt_uid, reply, count);
+        send_error_message(message, count);
     }
     return count;
 }
@@ -517,27 +503,24 @@ int Server::process_controlInfo_request(void *data,int sender_uid)
 
 int Server::updateClient(const std::string &username, int uid)
 {
-    flat_header flat;
-
-    flat.header.length = 0;
-    flat.header.version = VERSION;
-    flat.header.type = LOGINOUT;
-    flat.header.flags = SYN | ACK;
+    Header header;
+    header.length = 0;
+    header.version = VERSION;
+    header.type = LOGINOUT;
+    header.flags = SYN | ACK;
     Client *client = getClient(username);
     if(client)
     {
-        flat.header.flags |= DUP ;
+        header.flags |= DUP ;
     }
     else
     {
        client = getClient(uid);
        client->setUsername(username);
     }
-    int count = write(getClient(uid)->getSocket(), (void*)&flat.header, 4);
+    int count = write(getClient(uid)->getSocket(), (void*)&header, 4);
     if(count > 0)
-        Logger::log(std::string(__FUNCTION__)
-                    + " reply sent to client "
-                    + username);
+        Logger::log(username + " logged in.");
     client = nullptr;
     return count;
 }

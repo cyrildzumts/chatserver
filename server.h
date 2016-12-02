@@ -37,12 +37,12 @@ public:
      * @param pos
      * @return
      */
-    NeighboorServer *getServer(int pos);
+    NeighboorServer *getServer(size_t pos);
     /**
      * @brief removeServer
      * @param pos
      */
-    void removeServer(int pos);
+    void removeServer(size_t pos);
 
 
     /**
@@ -129,6 +129,7 @@ private:
     bool stopped;
     Message error_message;
     std::string name;
+    void send_error_message(const Message &message, int count);
 };
 
 #endif // SERVER_H
