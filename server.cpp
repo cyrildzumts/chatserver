@@ -2,7 +2,8 @@
 
 Server::Server()
 {
-    stopped = false;
+    stopped = false;   
+    name = "Server";
 }
 
 void Server::init()
@@ -305,11 +306,11 @@ int Server::sendToClient(int client_uid, void *data, int n)
              }
              else if(count < n)
              {
-                Logger::log("Not all data could be sent");
+                Logger::log("SendToClient : Not all data could be sent");
              }
              else
              {
-                 Logger::log("all data could be sent");
+                 Logger::log("SendToClient : all data could be sent");
              }
              break;
          }
@@ -370,8 +371,7 @@ int Server::decode_and_process(void *data, int sender_uid)
         break;
     case MSG:
         msg = Serialization::Serialize<Message>::deserialize(data);
-        ret = process_message(std::string(msg.receiver),
-                              data, header.header.length
+        ret = process_message(msg,data, header.header.length
                               + sizeof(Header)
                               + (2*STR_LEN));
         break;
@@ -426,14 +426,14 @@ int Server::process_loginout(LogInOut &log, int sender_uid)
 }
 
 
-int Server::process_message(const std::string &receiver,
+int Server::process_message(const Message &message,
                             void *data, int len)
 {
     Client *client = nullptr;
     int count = 1;
     for(Client* clt : clients)
     {
-        if(clt->getUsername() == receiver)
+        if(clt->getUsername() == std::string(message.receiver))
         {
             client = clt;
             break;
@@ -456,9 +456,19 @@ int Server::process_message(const std::string &receiver,
     // the receiver is may be available from the the server
     else
     {
-        Logger::log("user " + receiver + " not found on this server");
+
+        std::string str = std::string("user ") + std::string(message.receiver)
+                + " not found on this server" ;
         // send message to the next server
         count = 0;
+        Logger::log(str);
+        int clt_uid = getClient(std::string(message.sender))->getUid();
+        error_message = create_message(name,
+                                       std::string(message.sender),
+                                       str.c_str(), str.size());
+        void * reply = Serialization::Serialize<Message>::serialize(error_message);
+        count = (2 * STR_LEN) + str.size() + sizeof(Header);
+        count = sendToClient(clt_uid, reply, count);
     }
     return count;
 }

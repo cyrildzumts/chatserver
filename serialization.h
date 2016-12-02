@@ -5,11 +5,39 @@
 
 namespace Serialization
 {
+
     template <typename T>
+    /**
+     * @brief The Serialize class
+     * This class serialize every supperted
+     * User defined type to a byte stream.
+     * when calling serialize member you
+     * get a pointer to the memory region
+     * where the created stream is located.
+     * The client is responsible for freeing
+     * the allocated memory.
+     *
+     */
     class Serialize
     {
     public:
+        /**
+        * @brief serialize create a byte stream
+        * from the parameter T
+        * @param param The original Object for
+        * which the byte stream is created
+        * @return pointer (void *) to the
+        * memory location of the stream
+        */
        static void *serialize(const T &param);
+
+       /**
+        * @brief deserialize create an Object
+        * of type T from the byte stream data
+        * @param data the byte stream to
+        * deserialize
+        * @return an Object of type T
+        */
        static T deserialize(void *data);
     };
 
@@ -51,10 +79,9 @@ namespace Serialization
         {
             int size = STR_LEN + sizeof(Header);
             char *data;
-            int len = strlen(log.username);
             data = new char[size];
             memset(data, 0, STR_LEN);
-            memcpy(data, &log, len + sizeof(Header));
+            memcpy(data, &log, size);
 
             return data;
         }
@@ -64,9 +91,15 @@ namespace Serialization
 
             LogInOut log;
             char *ptr = (char*)data;
-            int size = ptr[0] + sizeof(Header);
+            int size = ptr[3] + sizeof(Header);
             memset(log.username, 0, STR_LEN);
-            memcpy(&log,data, size );
+            memcpy(&log.header,
+                   data,
+                   sizeof(Header) );
+
+            memcpy(&log.username,
+                   data +sizeof(Header),
+                   size );
             ptr = nullptr;
             return log;
         }

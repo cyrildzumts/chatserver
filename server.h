@@ -106,7 +106,7 @@ private:
     void update_userlist(const ControlInfo &info, int sender_uid);
     void update_local_list();
     int process_loginout(LogInOut& log, int sender_uid);
-    int process_message(const std::string &receiver,
+    int process_message(const Message &message,
                         void *data,int len);
     int process_get_request(int sender_uid);
     int process_controlInfo_request(void *data, int sender_uid);
@@ -127,6 +127,8 @@ private:
     int flags;
     std::string port;
     bool stopped;
+    Message error_message;
+    std::string name;
 };
 
 #endif // SERVER_H
